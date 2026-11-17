@@ -1,10 +1,11 @@
 // Lets accepted players into the Roblox group.
 // If they haven't sent a join request yet, it keeps checking until they do.
 class GroupSync {
-	constructor(applications, roblox, { wavedRank, onJoined = async () => {}, log = console } = {}) {
+	constructor(applications, roblox, { wavedRank, inactiveRank = null, onJoined = async () => {}, log = console } = {}) {
 		this.applications = applications;
 		this.roblox = roblox;
 		this.wavedRank = wavedRank;
+		this.inactiveRank = inactiveRank;
 		this.onJoined = onJoined;
 		this.log = log;
 		this.running = false;
@@ -38,10 +39,34 @@ class GroupSync {
 			return;
 		}
 		const current = roles.find((role) => role.path === membership.role);
-		if (current && current.rank >= waved.rank) {
+		// Inactive sits above Waved, so it's checked by number: returning players move back to Waved
+		const inactive = current && current.rank === this.inactiveRank;
+		if (current && current.rank >= waved.rank && !inactive) {
 			return;
 		}
 		await this.roblox.setRole(membership.path, waved.path);
+	}
+
+	// Moves a Waved member to the Inactive rank. Never touches anyone on another rank.
+	async demote(robloxId) {
+		const membership = await this.roblox.getMembership(robloxId);
+		if (!membership) {
+			return "not in the group";
+		}
+		const roles = await this.roblox.listRoles();
+		const current = roles.find((role) => role.path === membership.role);
+		const inactive = roles.find((role) => role.rank === this.inactiveRank);
+		if (!inactive) {
+			throw new Error(`No group role with rank ${this.inactiveRank}`);
+		}
+		if (current?.rank === this.inactiveRank) {
+			return "already Inactive";
+		}
+		if (current?.rank !== this.wavedRank) {
+			return `skipped (rank ${current?.name ?? "unknown"})`;
+		}
+		await this.roblox.setRole(membership.path, inactive.path);
+		return "moved to Inactive";
 	}
 
 	async runOnce() {
