@@ -212,7 +212,7 @@ function pdLog(operation, kias) {
 	const embed = new EmbedBuilder()
 		.setColor(ended ? config.Colors.Concluded : config.Colors.Kia)
 		.setAuthor({ name: "SPEARHEAD SQUADRON // PARA-RAID LOG" })
-		.setTitle(`EVENT ${pad2(operation.id)}  ◢ KIA ◣`)
+		.setTitle(`EVENT ${pad2(operation.id)}`)
 		.setDescription("```\n" + sheet + "\n```" + timing)
 		.addFields(
 			{ name: `KIA ▸ ${lost}`, value: kiaList(kias) },
@@ -228,7 +228,7 @@ function kiaSolo(kia) {
 	const embed = new EmbedBuilder()
 		.setColor(kia.restored ? config.Colors.Concluded : config.Colors.Kia)
 		.setAuthor({ name: "SPEARHEAD SQUADRON // PARA-RAID LOG" })
-		.setTitle("UNSCHEDULED  ◢ KIA ◣")
+		.setTitle("UNSCHEDULED")
 		.setDescription("```\n" + `SECTOR ........ ${plain(kia.map || "UNKNOWN", 40).toUpperCase()}\nSTATUS ........ NO ACTIVE OPERATION` + "\n```")
 		.addFields({ name: "KIA", value: kiaLine(kia, 1) })
 		.setFooter({ text: FOOTER })
