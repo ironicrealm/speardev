@@ -1,0 +1,17 @@
+{
+  "name": "speardev",
+  "version": "1.0.0",
+  "description": "Spearhead Discord bot: verification, waves, applications",
+  "private": true,
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node --env-file=.env --disable-warning=ExperimentalWarning src/index.js",
+    "test": "node --disable-warning=ExperimentalWarning --test"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3"
+  }
+}
