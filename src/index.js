@@ -16,6 +16,8 @@ const { EPHEMERAL, isStaff, giveRole, dm, log } = require("./discord/helpers");
 const { createGameFeed } = require("./discord/gameFeed");
 const { createServer } = require("./web/server");
 const ticketManager = require("./discord/ticketManager");
+const bans = require("./discord/bans");
+const { Bans } = require("./services/bans");
 
 // Starts the bot.
 
@@ -41,7 +43,8 @@ function loadFolder(folder) {
 
 checkConfig();
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+// GuildMembers lets the bot notice banned people rejoining ("Server Members Intent" in the Developer Portal)
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
 const db = database.open(config.Database);
 const roblox = new RobloxApi({ apiKey: config.RobloxApiKey, groupId: config.Group.Id });
 const applications = new Applications(db);
@@ -56,6 +59,7 @@ const ctx = {
 	operations: new Operations(db),
 	tickets: new Tickets(db),
 	actions: new Actions(db),
+	bans: new Bans(db),
 };
 
 // When an accepted player gets into the Roblox group
@@ -108,6 +112,16 @@ client.once(Events.ClientReady, async () => {
 	// tickets nobody picked up get closed after a few days
 	ticketManager.startAutoClose(ctx);
 
+	// make sure the Banned role can only see tickets
+	const guild = await client.guilds.fetch(config.GuildId).catch(() => null);
+	if (guild) {
+		await guild.channels.fetch().catch(() => {});
+		bans
+			.syncAll(guild)
+			.then((changed) => console.log(`[Bans] Channel rules checked (${changed} updated)`))
+			.catch((error) => console.warn(`[Bans] ${error.message}`));
+	}
+
 	// Game connection (deaths, alerts, events, last seen)
 	if (!config.Game.Secret) {
 		console.warn("[Game] GAME_SECRET is not set in .env, so the game can't talk to the bot yet");
@@ -148,6 +162,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
 	}
 });
 
+client.on(Events.ChannelCreate, (channel) => bans.onChannelCreate(channel));
+client.on(Events.GuildMemberAdd, (member) => bans.onMemberJoin(ctx, member));
+
 process.on("unhandledRejection", (error) => console.error("[Unhandled]", error));
 
-client.login(config.Token);
+client.login(config.Token).catch((error) => {
+	if (String(error.message).toLowerCase().includes("disallowed intents")) {
+		console.error("Turn on \"Server Members Intent\" in the Discord Developer Portal (your app > Bot), then restart.");
+	} else {
+		console.error(error);
+	}
+	process.exit(1);
+});

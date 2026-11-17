@@ -22,7 +22,8 @@ function context(ctx, ticket) {
 	const link = ctx.links.get(ticket.discord_id);
 	const kia = ticket.kia_id ? ctx.operations.getKia(ticket.kia_id) : null;
 	const operation = kia?.operation_id ? ctx.operations.get(kia.operation_id) : null;
-	return { link, kia, operation };
+	const ban = ticket.type === "ban" ? ctx.bans.active(ticket.discord_id) : null;
+	return { link, kia, operation, ban };
 }
 
 function render(ctx, ticket) {

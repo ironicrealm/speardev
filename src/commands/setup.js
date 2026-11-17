@@ -19,8 +19,11 @@ module.exports = {
 	async run(interaction, ctx) {
 		const which = interaction.options.getString("panel") ?? "applications";
 		if (which === "tickets") {
-			await interaction.channel.send(ticketUi.ticketPanel());
-			await interaction.reply({ content: "Ticket panel posted.", flags: EPHEMERAL });
+			await interaction.deferReply({ flags: EPHEMERAL });
+			for (const card of ticketUi.ticketPanels()) {
+				await interaction.channel.send(card);
+			}
+			await interaction.editReply({ content: "Ticket panel posted." });
 			return;
 		}
 		await panel.post(ctx, interaction.channel);

@@ -78,3 +78,16 @@ test("old databases get the new memorial column", () => {
 	database.open(file);
 	fs.rmSync(file, { force: true });
 });
+
+test("soft bans: one active ban at a time, lifting works once", () => {
+	const { Bans } = require("../src/services/bans");
+	const bans = new Bans(database.open(":memory:"));
+	assert.equal(bans.active("d1"), null);
+	assert.equal(bans.add("d1", "spam", "staff").reason, "spam");
+	assert.equal(bans.add("d1", "again", "staff"), null, "already banned");
+	assert.equal(bans.allActive().length, 1);
+	assert.equal(bans.lift("d1", "staff2").lifted_by, "staff2");
+	assert.equal(bans.lift("d1", "staff2"), null);
+	assert.equal(bans.active("d1"), null);
+	assert.ok(bans.add("d1", "back again", "staff"), "can be banned again later");
+});

@@ -11,6 +11,7 @@ The Spearhead Discord bot. It handles:
 - **Tickets**: Death Appeal, General Support and Event Request, each in its own private channel. Appeals can be voided, which restores the character in game automatically.
 - **Memorial wall**: every permadeath gets a memorial entry; it's removed again if the death is voided.
 - **Dossier**: `/dossier` shows a Processor's service record.
+- **Soft bans**: `/ban` gives the Banned role. Banned members stay in the server but can only read the tickets channel and open a Ban Appeal.
 
 ---
 
@@ -27,6 +28,8 @@ The Spearhead Discord bot. It handles:
 |---|---|
 | `/setup` | Posts the Verify / Apply panel in the current channel. `/setup panel:Tickets` posts the ticket panel |
 | `/dossier` | Anyone: shows a Processor's service record (events, last seen, KIA) |
+| `/ban @member [reason]` | Soft ban: they can only see the tickets channel. Rejoining doesn't remove it |
+| `/unban @member` | Lifts a soft ban |
 | `/wave open name:Wave 3` | Opens a wave (the Apply button turns on) |
 | `/wave close` | Closes the wave (shows how many were accepted / denied / still waiting) |
 | `/wave status` | Shows the current wave and its numbers |
@@ -158,6 +161,12 @@ The bot also needs the **Moderate Members** permission in every Discord server f
 - Ticket channels are created in the tickets category. The bot needs **Manage Channels** (and **Manage Roles**) there.
 - Staff (Moderator / Admin / Developer) see every ticket. Transcripts go to the log channel when a ticket closes.
 - **Death Appeal → Accept Void** queues a restore. Game servers ask the bot every 10 seconds and apply it as soon as the player is in a server.
+
+### 7. Soft bans
+
+1. Discord Developer Portal → your app → **Bot** → turn on **Server Members Intent**. (Needed to put the Banned role back if someone leaves and rejoins. Without it the bot won't start.)
+2. Server Settings → **Roles**: keep the bot's role **above** the Banned role.
+3. The Banned role's ID is in `src/config.js` (`BannedRoleId`). On start the bot sets every channel so the Banned role can't see it, except the tickets channel (read only). New channels get the same rule automatically.
 
 ### Updating the bot later
 

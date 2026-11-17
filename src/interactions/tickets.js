@@ -2,6 +2,7 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = re
 const config = require("../config");
 const ticketUi = require("../discord/ticketUi");
 const manager = require("../discord/ticketManager");
+const bans = require("../discord/bans");
 const { EPHEMERAL, isStaff, log } = require("../discord/helpers");
 
 // Ticket panel buttons, forms, and the staff buttons inside ticket channels
@@ -37,6 +38,15 @@ async function openButton(interaction, ctx) {
 			],
 			flags: EPHEMERAL,
 		});
+		return;
+	}
+	const banned = ctx.bans.active(interaction.user.id);
+	if (type === "ban" && !banned) {
+		await interaction.reply({ content: "You're not banned, so there's nothing to appeal.", flags: EPHEMERAL });
+		return;
+	}
+	if (type !== "ban" && banned) {
+		await interaction.reply({ content: "You're banned. Use **Appeal ban** instead.", flags: EPHEMERAL });
 		return;
 	}
 	const existing = ctx.tickets.openFor(interaction.user.id, type);
@@ -124,6 +134,11 @@ async function accept(interaction, ctx) {
 		await interaction.followUp({ content: "This appeal was already decided.", flags: EPHEMERAL });
 		return;
 	}
+	if (ticket.type === "ban") {
+		await bans.unban(ctx, interaction.guild, ticket.discord_id, interaction.user.id, { notify: false });
+		await manager.finish(ctx, ticket, `✅ Your ban appeal (#${ticket.id}) was **accepted**. The ban is lifted, welcome back.`);
+		return;
+	}
 	const kia = ticket.kia_id ? ctx.operations.getKia(ticket.kia_id) : null;
 	ctx.actions.queue({ robloxId: ticket.roblox_id, kind: "void", slot: kia?.slot ?? null, since: kia?.at ?? null, ticketId: ticket.id });
 	await log(ctx.client, `✅ <@${interaction.user.id}> accepted death appeal #${ticket.id} from <@${ticket.discord_id}>, void queued`);
@@ -158,6 +173,11 @@ async function denyReason(interaction, ctx) {
 	const ticket = ctx.tickets.finish(Number(part(interaction, 2)), "denied", interaction.user.id, reason);
 	if (!ticket) {
 		await interaction.followUp({ content: "This appeal was already decided.", flags: EPHEMERAL });
+		return;
+	}
+	if (ticket.type === "ban") {
+		await log(ctx.client, `❌ <@${interaction.user.id}> denied ban appeal #${ticket.id} from <@${ticket.discord_id}>`);
+		await manager.finish(ctx, ticket, `❌ Your ban appeal (#${ticket.id}) was **denied**. The ban stays.${manager.reasonText(reason)}`);
 		return;
 	}
 	await log(ctx.client, `❌ <@${interaction.user.id}> denied death appeal #${ticket.id} from <@${ticket.discord_id}>`);
