@@ -242,10 +242,11 @@ function joinLink(operation) {
 }
 
 function alertMessage(operation, pingRoleId) {
+	const ended = operation.ended_at != null;
 	const players = operation.max_players ? `${operation.deployed} / ${operation.max_players}` : `${operation.deployed}`;
 	const embed = new EmbedBuilder()
-		.setColor(config.Colors.Alert)
-		.setAuthor({ name: "◤ PARA-RAID // PRIORITY TRANSMISSION ◢" })
+		.setColor(ended ? config.Colors.Concluded : config.Colors.Alert)
+		.setAuthor({ name: ended ? "◤ PARA-RAID // TRANSMISSION CLOSED ◢" : "◤ PARA-RAID // PRIORITY TRANSMISSION ◢" })
 		.setTitle(plain(operation.header, 256))
 		.setDescription(plain(operation.message, 2000))
 		.addFields(
@@ -256,6 +257,10 @@ function alertMessage(operation, pingRoleId) {
 		)
 		.setFooter({ text: "SPEARHEAD SQUADRON · EIGHTY-SIX" })
 		.setTimestamp(operation.started_at * 1000);
+	if (ended) {
+		embed.addFields({ name: "STATUS", value: `■ CONNECTION ENDED <t:${operation.ended_at}:R>. Do not deploy.` });
+		return { embeds: [embed], components: [], allowedMentions: { parse: [] } };
+	}
 	const row = new ActionRowBuilder().addComponents(
 		new ButtonBuilder().setLabel("Deploy").setStyle(ButtonStyle.Link).setURL(joinLink(operation))
 	);
@@ -265,6 +270,37 @@ function alertMessage(operation, pingRoleId) {
 		components: [row],
 		allowedMentions: { roles: pingRoleId ? [pingRoleId] : [] },
 	};
+}
+
+// Posted as a reply to the alert when the event ends
+function linkEnded(operation, kias, logUrl) {
+	const lost = kias.filter((kia) => !kia.restored).length;
+	const deployed = Math.max(operation.deployed || 0, kias.length);
+	const rate = deployed > 0 ? Math.round((Math.max(0, deployed - lost) / deployed) * 100) : 100;
+	const embed = new EmbedBuilder()
+		.setColor(config.Colors.Kia)
+		.setAuthor({ name: "◤ PARA-RAID // LINK TERMINATED ◢" })
+		.setTitle("PARA-RAID CONNECTION ENDED")
+		.setDescription(
+			[
+				"```ansi",
+				`\u001b[1;31m■ SYNCHRONISATION LOST — EVENT ${pad2(operation.id)} IS OVER\u001b[0m`,
+				"```",
+				`Operations in **${plain(operation.map, 80)}** have concluded. **Do not deploy.**`,
+				"Return to base and stand by for the next transmission.",
+			].join("\n")
+		)
+		.addFields(
+			{ name: "DURATION", value: duration((operation.ended_at ?? operation.started_at) - operation.started_at), inline: true },
+			{ name: "KIA", value: String(lost), inline: true },
+			{ name: "SURVIVAL", value: `${rate}%`, inline: true }
+		)
+		.setFooter({ text: "SPEARHEAD SQUADRON · EIGHTY-SIX" })
+		.setTimestamp((operation.ended_at ?? operation.started_at) * 1000);
+	if (logUrl) {
+		embed.addFields({ name: "REPORT", value: `[Open the PD log](${logUrl})` });
+	}
+	return { embeds: [embed], allowedMentions: { parse: [] } };
 }
 
 module.exports = {
@@ -279,5 +315,6 @@ module.exports = {
 	pdLog,
 	kiaSolo,
 	alertMessage,
+	linkEnded,
 	tidesHeader,
 };
