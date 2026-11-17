@@ -13,9 +13,16 @@ const { clip, profileLink } = require("./ui");
 // Tickets, memorial wall and dossier: how they look.
 
 const STYLE = {
-	appeal: { color: () => config.Colors.Appeal, author: "◤ PARA-RAID // DEATH APPEAL ◢", title: "APPEAL" },
+	appeal: { color: () => config.Colors.Appeal, author: "◤ PARA-RAID // DEATH APPEAL ◢", title: "DEATH APPEAL" },
 	support: { color: () => config.Colors.Support, author: "◤ SPEARHEAD // GENERAL SUPPORT ◢", title: "SUPPORT" },
 	event: { color: () => config.Colors.Event, author: "◤ SPEARHEAD // EVENT REQUEST ◢", title: "EVENT REQUEST" },
+	ban: { color: () => config.Colors.Ban, author: "◤ REPUBLIC // DISCIPLINARY REVIEW ◢", title: "BAN APPEAL" },
+};
+
+// Decision buttons and result labels per ticket type
+const DECIDE = {
+	appeal: { accept: "Accept Void", deny: "Deny Void", accepted: "✅ VOID ACCEPTED", denied: "❌ VOID DENIED" },
+	ban: { accept: "Accept Unban", deny: "Deny Unban", accepted: "✅ UNBANNED", denied: "❌ BAN UPHELD" },
 };
 
 function escapeName(name) {
@@ -26,26 +33,52 @@ function pad2(n) {
 	return String(n).padStart(2, "0");
 }
 
-function ticketPanel() {
-	const embed = new EmbedBuilder()
-		.setColor(config.Colors.Main)
-		.setAuthor({ name: "◤ SPEARHEAD // SUPPORT ◢" })
-		.setTitle("Open a ticket")
-		.setDescription(
-			[
-				"**Death Appeal**: you think your death was unfair. Staff can void it and restore your character.",
-				"**General Support**: questions, problems, anything else.",
-				"**Event Request**: pitch an event to staff.",
-				"",
-				`Tickets nobody has picked up within ${config.TicketAutoCloseDays} days close by themselves.`,
-			].join("\n")
+// The ticket panel is four separate cards, one per ticket type
+const PANELS = [
+	{
+		type: "appeal",
+		button: "Open death appeal",
+		style: ButtonStyle.Danger,
+		sheet: ["FILE ......... CONTEST A KIA RECORD", "OUTCOME ...... VOID / UPHELD", "REQUIRES ..... LINKED ROBLOX ACCOUNT"],
+		text: "Lost your character to something unfair? Tell us what happened and bring proof. If staff void the death, your character is restored automatically.",
+	},
+	{
+		type: "support",
+		button: "Contact staff",
+		style: ButtonStyle.Primary,
+		sheet: ["CHANNEL ...... DIRECT LINE TO STAFF", "HANDLING ..... CLAIMED BY ONE STAFF MEMBER", "TOPICS ....... QUESTIONS, BUGS, ANYTHING"],
+		text: "Questions, problems, bugs or anything else. A staff member claims your ticket and stays with you until it's sorted.",
+	},
+	{
+		type: "event",
+		button: "Request event",
+		style: ButtonStyle.Secondary,
+		sheet: ["SUBMIT ....... EVENT TYPE · INFO · REASONING", "REVIEW ....... BY STAFF", "STATUS ....... OPEN TO ALL PROCESSORS"],
+		text: "Got an idea for an operation? Pitch it to staff with the details and why it would be good.",
+	},
+	{
+		type: "ban",
+		button: "Appeal ban",
+		style: ButtonStyle.Secondary,
+		sheet: ["STATUS ....... RESTRICTED ACCESS", "FILE ......... REQUEST REINSTATEMENT", "ELIGIBLE ..... BANNED MEMBERS ONLY"],
+		text: "Banned from the server? Explain what happened and why the ban should be lifted.",
+	},
+];
+
+function ticketPanels() {
+	return PANELS.map((panel) => {
+		const style = STYLE[panel.type];
+		const embed = new EmbedBuilder()
+			.setColor(style.color())
+			.setAuthor({ name: style.author })
+			.setTitle(style.title)
+			.setDescription("```\n" + panel.sheet.join("\n") + "\n```" + panel.text)
+			.setFooter({ text: `SPEARHEAD SQUADRON · UNANSWERED TICKETS CLOSE AFTER ${config.TicketAutoCloseDays} DAYS` });
+		const row = new ActionRowBuilder().addComponents(
+			new ButtonBuilder().setCustomId(`ticket:open:${panel.type}`).setLabel(panel.button).setStyle(panel.style)
 		);
-	const row = new ActionRowBuilder().addComponents(
-		new ButtonBuilder().setCustomId("ticket:open:appeal").setLabel("Death Appeal").setStyle(ButtonStyle.Danger),
-		new ButtonBuilder().setCustomId("ticket:open:support").setLabel("General Support").setStyle(ButtonStyle.Primary),
-		new ButtonBuilder().setCustomId("ticket:open:event").setLabel("Event Request").setStyle(ButtonStyle.Secondary)
-	);
-	return { embeds: [embed], components: [row] };
+		return { embeds: [embed], components: [row] };
+	});
 }
 
 function ticketModal(type) {
@@ -92,7 +125,7 @@ function deathLine(kia, operation) {
 }
 
 // The first message in a ticket channel. Changes as the ticket is claimed or decided.
-function ticketMessage(ticket, { link, kia, operation } = {}) {
+function ticketMessage(ticket, { link, kia, operation, ban } = {}) {
 	const style = STYLE[ticket.type];
 	const info = config.TicketTypes[ticket.type];
 	const embed = new EmbedBuilder()
@@ -110,6 +143,14 @@ function ticketMessage(ticket, { link, kia, operation } = {}) {
 	if (ticket.type === "appeal") {
 		embed.addFields({ name: "DEATH", value: deathLine(kia, operation) });
 	}
+	if (ticket.type === "ban") {
+		embed.addFields({
+			name: "BAN ON FILE",
+			value: ban
+				? `By <@${ban.banned_by}> · <t:${ban.created_at}:f>\nReason: ${clip(ban.reason || "none given", 800)}`
+				: "No active ban.",
+		});
+	}
 	for (const question of info.Questions) {
 		embed.addFields({ name: question.Label.toUpperCase(), value: clip(ticket.answers[question.Id] || "-", 1024) });
 	}
@@ -119,19 +160,23 @@ function ticketMessage(ticket, { link, kia, operation } = {}) {
 		embed.addFields({ name: "CLAIMED BY", value: `<@${ticket.claimed_by}>` });
 	}
 	if (done) {
-		const label = { accepted: "✅ VOID ACCEPTED", denied: "❌ VOID DENIED", closed: "■ CLOSED", expired: "■ CLOSED AUTOMATICALLY" }[ticket.status];
+		const decide = DECIDE[ticket.type] ?? {};
+		const label = { accepted: decide.accepted, denied: decide.denied, closed: "■ CLOSED", expired: "■ CLOSED AUTOMATICALLY" }[ticket.status];
 		const by = ticket.closed_by ? ` by <@${ticket.closed_by}>` : "";
 		embed.addFields({ name: label, value: `${by ? by.trim() : "No staff response in time"}${ticket.reason ? `\nReason: ${clip(ticket.reason, 900)}` : ""}` });
 	}
-	embed.setFooter({
-		text: ticket.type === "appeal" ? "Accept Void restores the character in game automatically." : "SPEARHEAD SQUADRON · EIGHTY-SIX",
-	});
+	const footers = {
+		appeal: "Accept Void restores the character in game automatically.",
+		ban: "Accept Unban removes the Banned role.",
+	};
+	embed.setFooter({ text: footers[ticket.type] ?? "SPEARHEAD SQUADRON · EIGHTY-SIX" });
 
 	const buttons = [];
-	if (!done && ticket.type === "appeal") {
+	const decide = DECIDE[ticket.type];
+	if (!done && decide) {
 		buttons.push(
-			new ButtonBuilder().setCustomId(`ticket:accept:${ticket.id}`).setLabel("Accept Void").setStyle(ButtonStyle.Success),
-			new ButtonBuilder().setCustomId(`ticket:deny:${ticket.id}`).setLabel("Deny Void").setStyle(ButtonStyle.Danger)
+			new ButtonBuilder().setCustomId(`ticket:accept:${ticket.id}`).setLabel(decide.accept).setStyle(ButtonStyle.Success),
+			new ButtonBuilder().setCustomId(`ticket:deny:${ticket.id}`).setLabel(decide.deny).setStyle(ButtonStyle.Danger)
 		);
 	} else if (!done) {
 		if (ticket.status === "open") {
@@ -189,4 +234,4 @@ function dossier({ link, accepted, wave, avatar, events, lastSeen, deaths }) {
 	return { embeds: [embed], allowedMentions: { parse: [] } };
 }
 
-module.exports = { ticketPanel, ticketModal, reasonModal, ticketMessage, memorial, dossier };
+module.exports = { ticketPanels, ticketModal, reasonModal, ticketMessage, memorial, dossier };

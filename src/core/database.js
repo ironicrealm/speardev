@@ -130,6 +130,18 @@ function open(file) {
 
 		CREATE INDEX IF NOT EXISTS actions_pending ON actions (roblox_id, done_at);
 
+		CREATE TABLE IF NOT EXISTS bans (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			discord_id TEXT NOT NULL,
+			reason TEXT,
+			banned_by TEXT,
+			created_at INTEGER NOT NULL,
+			lifted_at INTEGER,
+			lifted_by TEXT
+		);
+
+		CREATE INDEX IF NOT EXISTS bans_user ON bans (discord_id, lifted_at);
+
 		CREATE TABLE IF NOT EXISTS attendance (
 			operation_id INTEGER NOT NULL,
 			roblox_id INTEGER NOT NULL,

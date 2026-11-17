@@ -42,7 +42,18 @@ module.exports = {
 				{ Id: "reason", Label: "Reasoning", Style: "Paragraph", Max: 1000 },
 			],
 		},
+		ban: {
+			Label: "Ban Appeal",
+			Prefix: "ban",
+			Questions: [
+				{ Id: "what", Label: "What were you banned for?", Style: "Paragraph", Max: 1000 },
+				{ Id: "why", Label: "Why should the ban be lifted?", Style: "Paragraph", Max: 1500 },
+			],
+		},
 	},
+
+	// Soft ban: this role can only see the tickets channel
+	BannedRoleId: "1572138420770308116",
 
 	// The game talks to the bot through this. GAME_SECRET must match the secret saved in Roblox.
 	Game: {
@@ -99,5 +110,6 @@ module.exports = {
 		Support: 0x3a608c,
 		Event: 0xc9a227,
 		Memorial: 0x2b2f36,
+		Ban: 0x8a2b2b,
 	},
 };
