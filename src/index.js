@@ -9,7 +9,10 @@ const { Links } = require("./services/links");
 const { Waves } = require("./services/waves");
 const { Applications } = require("./services/applications");
 const { GroupSync } = require("./services/groupSync");
+const { Operations } = require("./services/operations");
 const { EPHEMERAL, isStaff, giveRole, dm, log } = require("./discord/helpers");
+const { createGameFeed } = require("./discord/gameFeed");
+const { createServer } = require("./web/server");
 
 // Starts the bot.
 
@@ -47,6 +50,7 @@ const ctx = {
 	applications,
 	links: new Links(db, roblox, { codeMinutes: config.VerifyCodeMinutes }),
 	waves: new Waves(db),
+	operations: new Operations(db),
 };
 
 // When an accepted player gets into the Roblox group
@@ -95,6 +99,14 @@ client.once(Events.ClientReady, async () => {
 			.catch((error) => console.warn(`[Roblox] API key check failed: ${error.message}`));
 	keepKeyAlive();
 	setInterval(keepKeyAlive, 24 * 60 * 60 * 1000);
+
+	// Game connection (deaths, alerts, events, last seen)
+	if (!config.Game.Secret) {
+		console.warn("[Game] GAME_SECRET is not set in .env, so the game can't talk to the bot yet");
+		return;
+	}
+	const server = createServer({ secret: config.Game.Secret, handlers: createGameFeed(ctx) });
+	server.listen(config.Game.Port, "127.0.0.1", () => console.log(`[Game] Listening on port ${config.Game.Port}`));
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {

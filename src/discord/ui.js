@@ -142,4 +142,141 @@ function denyModal(appId) {
 		);
 }
 
-module.exports = { panel, verifyModal, verifyInstructions, applyModal, reviewMessage, denyModal, profileLink, clip };
+// ---- PD logs and deployment alerts (86 / Para-RAID look) ----
+
+const FOOTER = "REPUBLIC OF SAN MAGNOLIA · EASTERN FRONT · 86TH SECTOR";
+
+// Text from the game is cleaned so it can't break the code blocks or markdown
+function plain(text, max) {
+	return clip(String(text ?? "").replace(/[`\u001b]/g, ""), max);
+}
+
+function escapeName(name) {
+	return String(name).replace(/([\\_*~|`>])/g, "\\$1");
+}
+
+function pad2(n) {
+	return String(n).padStart(2, "0");
+}
+
+function duration(seconds) {
+	const h = Math.floor(seconds / 3600);
+	const m = Math.floor((seconds % 3600) / 60);
+	const s = seconds % 60;
+	return `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
+}
+
+function tidesHeader(map) {
+	return "```ansi\n\u001b[1;31mTHE WORLD CHANGES ITS TIDES AT " + plain(map, 80).toUpperCase() + "\u001b[0m\n```";
+}
+
+function kiaLine(kia, index) {
+	const name = escapeName(kia.roblox_name);
+	if (kia.restored) {
+		return `\`${pad2(index)}\` ~~${name}~~ · link restored`;
+	}
+	return `\`${pad2(index)}\` **${name}** · ${plain(kia.cause || "unknown", 40)} · <t:${kia.at}:t>`;
+}
+
+function kiaList(kias) {
+	const lines = [];
+	let length = 0;
+	for (let i = 0; i < kias.length; i++) {
+		const line = kiaLine(kias[i], i + 1);
+		if (length + line.length + 30 > 1024) {
+			lines.push(`*+${kias.length - i} more*`);
+			break;
+		}
+		lines.push(line);
+		length += line.length + 1;
+	}
+	return lines.join("\n") || "No losses.";
+}
+
+function pdLog(operation, kias) {
+	const lost = kias.filter((kia) => !kia.restored).length;
+	const deployed = Math.max(operation.deployed || 0, kias.length);
+	const rate = deployed > 0 ? Math.max(0, (deployed - lost) / deployed) : 1;
+	const filled = Math.round(rate * 10);
+	const ended = operation.ended_at != null;
+
+	const sheet = [
+		`SECTOR ........ ${plain(operation.map, 40).toUpperCase()}`,
+		`STATUS ........ ${ended ? "CONCLUDED ■" : "ENGAGED ●"}`,
+		`DEPLOYED ...... ${deployed} PROCESSOR${deployed === 1 ? "" : "S"}`,
+	].join("\n");
+	const timing = ended
+		? `Started <t:${operation.started_at}:t> · Duration ${duration(operation.ended_at - operation.started_at)}`
+		: `Started <t:${operation.started_at}:R>`;
+
+	const embed = new EmbedBuilder()
+		.setColor(ended ? config.Colors.Concluded : config.Colors.Kia)
+		.setAuthor({ name: "SPEARHEAD SQUADRON // PARA-RAID LOG" })
+		.setTitle(`EVENT ${pad2(operation.id)}  ◢ KIA ◣`)
+		.setDescription("```\n" + sheet + "\n```" + timing)
+		.addFields(
+			{ name: `KIA ▸ ${lost}`, value: kiaList(kias) },
+			{ name: "SURVIVAL RATE", value: `\`${"▰".repeat(filled)}${"▱".repeat(10 - filled)}\` ${Math.round(rate * 100)}%` }
+		)
+		.setFooter({ text: FOOTER })
+		.setTimestamp(operation.started_at * 1000);
+	return { content: tidesHeader(operation.map), embeds: [embed], allowedMentions: { parse: [] } };
+}
+
+// A death while no event is running
+function kiaSolo(kia) {
+	const embed = new EmbedBuilder()
+		.setColor(kia.restored ? config.Colors.Concluded : config.Colors.Kia)
+		.setAuthor({ name: "SPEARHEAD SQUADRON // PARA-RAID LOG" })
+		.setTitle("UNSCHEDULED  ◢ KIA ◣")
+		.setDescription("```\n" + `SECTOR ........ ${plain(kia.map || "UNKNOWN", 40).toUpperCase()}\nSTATUS ........ NO ACTIVE OPERATION` + "\n```")
+		.addFields({ name: "KIA", value: kiaLine(kia, 1) })
+		.setFooter({ text: FOOTER })
+		.setTimestamp(kia.at * 1000);
+	return { content: tidesHeader(kia.map || "UNKNOWN"), embeds: [embed], allowedMentions: { parse: [] } };
+}
+
+function joinLink(operation) {
+	return `https://www.roblox.com/games/start?placeId=${operation.place_id}&gameInstanceId=${encodeURIComponent(operation.job_id)}`;
+}
+
+function alertMessage(operation, pingRoleId) {
+	const players = operation.max_players ? `${operation.deployed} / ${operation.max_players}` : `${operation.deployed}`;
+	const embed = new EmbedBuilder()
+		.setColor(config.Colors.Alert)
+		.setAuthor({ name: "◤ PARA-RAID // PRIORITY TRANSMISSION ◢" })
+		.setTitle(plain(operation.header, 256))
+		.setDescription(plain(operation.message, 2000))
+		.addFields(
+			{ name: "SECTOR", value: plain(operation.map, 100), inline: true },
+			{ name: "IN SECTOR", value: players, inline: true },
+			{ name: "TIME", value: `<t:${operation.started_at}:t> · <t:${operation.started_at}:R>`, inline: true },
+			{ name: "HANDLER", value: `${escapeName(operation.handler || "Unknown")} · Event ${pad2(operation.id)}` }
+		)
+		.setFooter({ text: "SPEARHEAD SQUADRON · EIGHTY-SIX" })
+		.setTimestamp(operation.started_at * 1000);
+	const row = new ActionRowBuilder().addComponents(
+		new ButtonBuilder().setLabel("Deploy").setStyle(ButtonStyle.Link).setURL(joinLink(operation))
+	);
+	return {
+		content: pingRoleId ? `<@&${pingRoleId}>` : "",
+		embeds: [embed],
+		components: [row],
+		allowedMentions: { roles: pingRoleId ? [pingRoleId] : [] },
+	};
+}
+
+module.exports = {
+	panel,
+	verifyModal,
+	verifyInstructions,
+	applyModal,
+	reviewMessage,
+	denyModal,
+	profileLink,
+	clip,
+	pdLog,
+	kiaSolo,
+	alertMessage,
+	tidesHeader,
+};

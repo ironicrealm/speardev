@@ -8,7 +8,21 @@ module.exports = {
 		Apply: process.env.APPLY_CHANNEL_ID,
 		Review: process.env.REVIEW_CHANNEL_ID,
 		Log: process.env.LOG_CHANNEL_ID || null,
+		Alerts: "1572121736072269824",
+		PdLogs: "1572121860190109787",
 	},
+
+	// The game talks to the bot through this. GAME_SECRET must match the secret saved in Roblox.
+	Game: {
+		Port: Number(process.env.GAME_PORT) || 3005,
+		Secret: process.env.GAME_SECRET,
+	},
+
+	// Deployment alerts ping this Discord role (by name). null = no ping.
+	AlertPingRole: "Waved",
+
+	// Permadeath timeout in every Discord server the bot is in (seconds)
+	DeathTimeout: 120,
 
 	// Discord roles (by name) that can review applications and run staff commands
 	StaffRoles: ["Moderator", "Admin", "Developer"],
@@ -21,6 +35,8 @@ module.exports = {
 		Id: 99718853,
 		// Rank accepted players should end up on ("Waved")
 		WavedRank: 1,
+		// Rank for players removed for inactivity. It sits above Waved, so it's checked by number.
+		InactiveRank: 2,
 		Link: "https://www.roblox.com/communities/99718853",
 	},
 
@@ -44,5 +60,8 @@ module.exports = {
 		Accepted: 0x3fa45b,
 		Denied: 0xb4413c,
 		Pending: 0xc9a227,
+		Kia: 0xde4040,
+		Alert: 0x8cd7ff,
+		Concluded: 0x6e7a8c,
 	},
 };
