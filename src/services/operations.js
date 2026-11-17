@@ -81,6 +81,39 @@ class Operations {
 		return this.getKia(kia.id);
 	}
 
+	latestKia(robloxId, maxAgeSeconds) {
+		return (
+			this.db
+				.prepare("SELECT * FROM kia WHERE roblox_id = ? AND restored = 0 AND at > ? ORDER BY id DESC LIMIT 1")
+				.get(robloxId, now() - maxAgeSeconds) ?? null
+		);
+	}
+
+	setMemorial(kiaId, messageId) {
+		this.db.prepare("UPDATE kia SET memorial_message_id = ? WHERE id = ?").run(messageId, kiaId);
+	}
+
+	// Who took part in which event
+	attend(operationId, robloxIds) {
+		const insert = this.db.prepare("INSERT OR IGNORE INTO attendance (operation_id, roblox_id) VALUES (?, ?)");
+		for (const id of robloxIds) {
+			if (Number.isInteger(id)) {
+				insert.run(operationId, id);
+			}
+		}
+	}
+
+	eventsAttended(robloxId) {
+		return this.db.prepare("SELECT COUNT(*) AS n FROM attendance WHERE roblox_id = ?").get(robloxId).n;
+	}
+
+	deathStats(robloxId) {
+		const row = this.db
+			.prepare("SELECT SUM(restored = 0) AS lost, SUM(restored = 1) AS voided FROM kia WHERE roblox_id = ?")
+			.get(robloxId);
+		return { lost: row.lost ?? 0, voided: row.voided ?? 0 };
+	}
+
 	seen(robloxId) {
 		this.db
 			.prepare("INSERT INTO activity (roblox_id, last_seen) VALUES (?, ?) ON CONFLICT(roblox_id) DO UPDATE SET last_seen = excluded.last_seen")

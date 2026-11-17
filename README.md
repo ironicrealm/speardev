@@ -8,6 +8,9 @@ The Spearhead Discord bot. It handles:
 - **Group**: accepted players are let into the Roblox group automatically and land on **Waved**.
 - **PD logs**: deaths from the game are posted live per event, and the player gets a 2-minute timeout in every server.
 - **Deployment alerts**: staff type `;alert` in game, fill in a header and message, and it posts to Discord (pinging @Waved) with a Deploy button that joins that server.
+- **Tickets**: Death Appeal, General Support and Event Request, each in its own private channel. Appeals can be voided, which restores the character in game automatically.
+- **Memorial wall**: every permadeath gets a memorial entry; it's removed again if the death is voided.
+- **Dossier**: `/dossier` shows a Processor's service record.
 
 ---
 
@@ -22,7 +25,8 @@ The Spearhead Discord bot. It handles:
 
 | Command | What it does |
 |---|---|
-| `/setup` | Posts the Verify / Apply panel in the current channel |
+| `/setup` | Posts the Verify / Apply panel in the current channel. `/setup panel:Tickets` posts the ticket panel |
+| `/dossier` | Anyone: shows a Processor's service record (events, last seen, KIA) |
 | `/wave open name:Wave 3` | Opens a wave (the Apply button turns on) |
 | `/wave close` | Closes the wave (shows how many were accepted / denied / still waiting) |
 | `/wave status` | Shows the current wave and its numbers |
@@ -45,7 +49,7 @@ Applications show up in the review channel with **Accept** and **Deny** buttons.
 1. Go to the [Discord Developer Portal](https://discord.com/developers/applications) and click **New Application**. Name it.
 2. Open **Bot**, click **Reset Token**, copy the token. This goes in `.env` as `DISCORD_TOKEN`.
 3. Open **OAuth2 → URL Generator**. Tick `bot` and `applications.commands`. Under bot permissions tick
-   **View Channels, Send Messages, Embed Links, Read Message History, Manage Roles, Moderate Members**. Open the link and add the bot to your server.
+   **View Channels, Send Messages, Embed Links, Attach Files, Read Message History, Manage Roles, Manage Channels, Moderate Members**. Open the link and add the bot to your server.
 4. In your server settings → **Roles**, drag the bot's role **above** `Verified` and `Waved`, or it can't give those roles out.
 
 ### 2. Discord server
@@ -147,6 +151,13 @@ Check it: open `https://spear.realmgame.info/health` in your browser. It should 
 Each map can show a nicer name on Discord: select **Workspace** and add a string attribute `MapName`, e.g. `Wilderness 1`.
 
 The bot also needs the **Moderate Members** permission in every Discord server for the death timeout, and its role must be above the people it times out.
+
+### 6. Tickets
+
+- Run `/setup panel:Tickets` in your tickets channel.
+- Ticket channels are created in the tickets category. The bot needs **Manage Channels** (and **Manage Roles**) there.
+- Staff (Moderator / Admin / Developer) see every ticket. Transcripts go to the log channel when a ticket closes.
+- **Death Appeal → Accept Void** queues a restore. Game servers ask the bot every 10 seconds and apply it as soon as the player is in a server.
 
 ### Updating the bot later
 

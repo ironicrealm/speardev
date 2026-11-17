@@ -75,6 +75,19 @@ class RobloxApi {
 		}
 	}
 
+	// Avatar headshot image link (null if Roblox doesn't have one)
+	async getHeadshot(userId) {
+		try {
+			const data = await this.request(
+				`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=150x150&format=Png&isCircular=false`
+			);
+			const entry = data?.data?.[0];
+			return entry?.state === "Completed" ? entry.imageUrl : null;
+		} catch {
+			return null;
+		}
+	}
+
 	groupUrl(rest) {
 		return `${OPEN_CLOUD}/groups/${this.groupId}/${rest}`;
 	}

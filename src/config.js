@@ -10,6 +10,38 @@ module.exports = {
 		Log: process.env.LOG_CHANNEL_ID || null,
 		Alerts: "1572121736072269824",
 		PdLogs: "1572121860190109787",
+		Tickets: "1572131367553077258",
+		Memorial: "1572133332899074109",
+	},
+
+	// Ticket channels are made in this category
+	TicketCategory: "1572132076508028958",
+	// Tickets nobody claimed or decided are closed after this many days
+	TicketAutoCloseDays: 3,
+
+	TicketTypes: {
+		appeal: {
+			Label: "Death Appeal",
+			Prefix: "appeal",
+			Questions: [
+				{ Id: "unfair", Label: "Why was your death unfair?", Style: "Paragraph", Max: 1500 },
+				{ Id: "proof", Label: "Proof (links to clips or screenshots)", Style: "Paragraph", Max: 1000, Optional: true },
+			],
+		},
+		support: {
+			Label: "General Support",
+			Prefix: "support",
+			Questions: [{ Id: "topic", Label: "What do you need help with?", Style: "Paragraph", Max: 1500 }],
+		},
+		event: {
+			Label: "Event Request",
+			Prefix: "event",
+			Questions: [
+				{ Id: "type", Label: "Event type", Style: "Short", Max: 100 },
+				{ Id: "info", Label: "Information", Style: "Paragraph", Max: 1500 },
+				{ Id: "reason", Label: "Reasoning", Style: "Paragraph", Max: 1000 },
+			],
+		},
 	},
 
 	// The game talks to the bot through this. GAME_SECRET must match the secret saved in Roblox.
@@ -63,5 +95,9 @@ module.exports = {
 		Kia: 0xde4040,
 		Alert: 0x8cd7ff,
 		Concluded: 0x6e7a8c,
+		Appeal: 0xde4040,
+		Support: 0x3a608c,
+		Event: 0xc9a227,
+		Memorial: 0x2b2f36,
 	},
 };
