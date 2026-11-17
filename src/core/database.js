@@ -54,6 +54,44 @@ function open(file) {
 		CREATE INDEX IF NOT EXISTS applications_discord ON applications (discord_id);
 		CREATE INDEX IF NOT EXISTS applications_group ON applications (group_status);
 
+		CREATE TABLE IF NOT EXISTS operations (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			job_id TEXT NOT NULL,
+			place_id INTEGER NOT NULL,
+			map TEXT NOT NULL,
+			header TEXT,
+			message TEXT,
+			handler TEXT,
+			deployed INTEGER NOT NULL DEFAULT 0,
+			max_players INTEGER,
+			started_at INTEGER NOT NULL,
+			ended_at INTEGER,
+			log_message_id TEXT,
+			alert_message_id TEXT
+		);
+
+		CREATE INDEX IF NOT EXISTS operations_job ON operations (job_id);
+
+		CREATE TABLE IF NOT EXISTS kia (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			operation_id INTEGER,
+			roblox_id INTEGER NOT NULL,
+			roblox_name TEXT NOT NULL,
+			slot TEXT,
+			cause TEXT,
+			map TEXT,
+			at INTEGER NOT NULL,
+			restored INTEGER NOT NULL DEFAULT 0,
+			message_id TEXT
+		);
+
+		CREATE INDEX IF NOT EXISTS kia_roblox ON kia (roblox_id);
+
+		CREATE TABLE IF NOT EXISTS activity (
+			roblox_id INTEGER PRIMARY KEY,
+			last_seen INTEGER NOT NULL
+		);
+
 		CREATE TABLE IF NOT EXISTS settings (
 			key TEXT PRIMARY KEY,
 			value TEXT

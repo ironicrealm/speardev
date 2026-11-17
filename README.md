@@ -6,6 +6,8 @@ The Spearhead Discord bot. It handles:
 - **Waves**: staff open and close application waves.
 - **Applications**: verified players apply through a form, staff accept or deny with one click.
 - **Group**: accepted players are let into the Roblox group automatically and land on **Waved**.
+- **PD logs**: deaths from the game are posted live per event, and the player gets a 2-minute timeout in every server.
+- **Deployment alerts**: staff type `;alert` in game, fill in a header and message, and it posts to Discord (pinging @Waved) with a Deploy button that joins that server.
 
 ---
 
@@ -43,7 +45,7 @@ Applications show up in the review channel with **Accept** and **Deny** buttons.
 1. Go to the [Discord Developer Portal](https://discord.com/developers/applications) and click **New Application**. Name it.
 2. Open **Bot**, click **Reset Token**, copy the token. This goes in `.env` as `DISCORD_TOKEN`.
 3. Open **OAuth2 → URL Generator**. Tick `bot` and `applications.commands`. Under bot permissions tick
-   **View Channels, Send Messages, Embed Links, Read Message History, Manage Roles**. Open the link and add the bot to your server.
+   **View Channels, Send Messages, Embed Links, Read Message History, Manage Roles, Moderate Members**. Open the link and add the bot to your server.
 4. In your server settings → **Roles**, drag the bot's role **above** `Verified` and `Waved`, or it can't give those roles out.
 
 ### 2. Discord server
@@ -94,6 +96,57 @@ pm2 startup              # run the command it prints
 ```
 
 Then in Discord: go to the applications channel, run `/setup`, and open a wave with `/wave open`.
+
+### 5. Connect the game (PD logs, deaths, deployment alerts)
+
+The game sends events to `https://spear.realmgame.info`. Four parts:
+
+**a) Make a password.** On the server, run `openssl rand -hex 32` and copy the result.
+Add it to `.env` as `GAME_SECRET=...`, then `pm2 restart speardev`.
+
+**b) Point the subdomain at the server.** In Porkbun → your domain → **DNS**, add a record:
+Type `A`, Host `spear`, Answer = your Droplet's IP address. Leave TTL as is.
+
+**c) Add HTTPS in front of the bot.** Use whichever web server already runs your website.
+
+If it's **nginx**, create `/etc/nginx/sites-available/spear`:
+
+```nginx
+server {
+    server_name spear.realmgame.info;
+    location / {
+        proxy_pass http://127.0.0.1:3005;
+        proxy_set_header Host $host;
+    }
+}
+```
+
+then:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/spear /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d spear.realmgame.info
+```
+
+If it's **Caddy**, add this to `/etc/caddy/Caddyfile` and run `sudo systemctl reload caddy` (Caddy gets HTTPS by itself):
+
+```
+spear.realmgame.info {
+    reverse_proxy 127.0.0.1:3005
+}
+```
+
+Check it: open `https://spear.realmgame.info/health` in your browser. It should say `{"ok":true}`.
+
+**d) Give the game the password.**
+1. Creator Dashboard → your game → **Secrets** → **Create Secret**. Name `SpearBot`, secret = the same password, domain `spear.realmgame.info`.
+2. In Studio: **File → Experience Settings → Security** → turn on **Allow HTTP Requests**.
+3. Optional, for testing in Studio: add the same secret under **Local Secrets** there.
+
+Each map can show a nicer name on Discord: select **Workspace** and add a string attribute `MapName`, e.g. `Wilderness 1`.
+
+The bot also needs the **Moderate Members** permission in every Discord server for the death timeout, and its role must be above the people it times out.
 
 ### Updating the bot later
 
