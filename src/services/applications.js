@@ -15,7 +15,9 @@ class Applications {
 	// Checks if this person is allowed to apply in this wave
 	canApply(discordId, robloxId, waveId) {
 		const accepted = this.db
-			.prepare("SELECT id FROM applications WHERE (discord_id = ? OR roblox_id = ?) AND status = 'accepted' LIMIT 1")
+			.prepare(
+				"SELECT id FROM applications WHERE (discord_id = ? OR roblox_id = ?) AND status = 'accepted' AND group_status != 'inactive' LIMIT 1"
+			)
 			.get(discordId, robloxId);
 		if (accepted) {
 			return { ok: false, reason: "You've already been accepted." };

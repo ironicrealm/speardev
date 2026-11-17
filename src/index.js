@@ -18,6 +18,9 @@ const { createServer } = require("./web/server");
 const ticketManager = require("./discord/ticketManager");
 const bans = require("./discord/bans");
 const { Bans } = require("./services/bans");
+const { Loas } = require("./services/loas");
+const { Activity } = require("./services/activity");
+const inactivity = require("./discord/inactivity");
 
 // Starts the bot.
 
@@ -60,11 +63,14 @@ const ctx = {
 	tickets: new Tickets(db),
 	actions: new Actions(db),
 	bans: new Bans(db),
+	loas: new Loas(db),
+	activity: new Activity(db, { warnDays: config.Activity.WarnDays, removeDays: config.Activity.RemoveDays }),
 };
 
 // When an accepted player gets into the Roblox group
 ctx.groupSync = new GroupSync(applications, roblox, {
 	wavedRank: config.Group.WavedRank,
+	inactiveRank: config.Group.InactiveRank,
 	async onJoined(app) {
 		const guild = await client.guilds.fetch(config.GuildId).catch(() => null);
 		if (guild) {
@@ -111,6 +117,9 @@ client.once(Events.ClientReady, async () => {
 
 	// tickets nobody picked up get closed after a few days
 	ticketManager.startAutoClose(ctx);
+
+	// roll calls closing on time, and the 7-day rule (only when switched on)
+	inactivity.start(ctx);
 
 	// make sure the Banned role can only see tickets
 	const guild = await client.guilds.fetch(config.GuildId).catch(() => null);

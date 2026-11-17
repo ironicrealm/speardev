@@ -52,6 +52,16 @@ module.exports = {
 		},
 	},
 
+	// Activity
+	Activity: {
+		// DM a warning after this many days without playing
+		WarnDays: 5,
+		// Move to Inactive after this many days without playing
+		RemoveDays: 7,
+		// Longest leave of absence someone can ask for
+		LoaMaxDays: 60,
+	},
+
 	// Soft ban: this role can only see the tickets channel
 	BannedRoleId: "1572138420770308116",
 
@@ -111,5 +121,7 @@ module.exports = {
 		Event: 0xc9a227,
 		Memorial: 0x2b2f36,
 		Ban: 0x8a2b2b,
+		Loa: 0x5b7fa6,
+		RollCall: 0x8cd7ff,
 	},
 };

@@ -142,6 +142,48 @@ function open(file) {
 
 		CREATE INDEX IF NOT EXISTS bans_user ON bans (discord_id, lifted_at);
 
+		CREATE TABLE IF NOT EXISTS loas (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			discord_id TEXT NOT NULL,
+			roblox_id INTEGER,
+			days INTEGER NOT NULL,
+			reason TEXT,
+			status TEXT NOT NULL DEFAULT 'pending',
+			reviewer_id TEXT,
+			deny_reason TEXT,
+			review_message_id TEXT,
+			created_at INTEGER NOT NULL,
+			starts_at INTEGER,
+			ends_at INTEGER
+		);
+
+		CREATE INDEX IF NOT EXISTS loas_user ON loas (discord_id, status);
+
+		CREATE TABLE IF NOT EXISTS activity_checks (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			channel_id TEXT NOT NULL,
+			message_id TEXT,
+			created_by TEXT NOT NULL,
+			note TEXT,
+			created_at INTEGER NOT NULL,
+			ends_at INTEGER NOT NULL,
+			status TEXT NOT NULL DEFAULT 'open',
+			missing TEXT,
+			review_message_id TEXT
+		);
+
+		CREATE TABLE IF NOT EXISTS activity_responses (
+			check_id INTEGER NOT NULL,
+			discord_id TEXT NOT NULL,
+			at INTEGER NOT NULL,
+			PRIMARY KEY (check_id, discord_id)
+		);
+
+		CREATE TABLE IF NOT EXISTS inactivity_warnings (
+			roblox_id INTEGER PRIMARY KEY,
+			baseline INTEGER NOT NULL
+		);
+
 		CREATE TABLE IF NOT EXISTS attendance (
 			operation_id INTEGER NOT NULL,
 			roblox_id INTEGER NOT NULL,

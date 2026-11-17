@@ -12,6 +12,9 @@ The Spearhead Discord bot. It handles:
 - **Memorial wall**: every permadeath gets a memorial entry; it's removed again if the death is voided.
 - **Dossier**: `/dossier` shows a Processor's service record.
 - **Soft bans**: `/ban` gives the Banned role. Banned members stay in the server but can only read the tickets channel and open a Ban Appeal.
+- **Leave of absence**: `/loa request`, approved or denied by staff. People on leave are skipped by activity checks and the 7-day rule.
+- **Activity checks**: `/activity start` posts a roll call. When it closes, staff confirm who gets moved to Inactive.
+- **7-day rule** (off until you turn it on): a warning DM after 5 days without playing, moved to the Inactive rank after 7.
 
 ---
 
@@ -30,6 +33,9 @@ The Spearhead Discord bot. It handles:
 | `/dossier` | Anyone: shows a Processor's service record (events, last seen, KIA) |
 | `/ban @member [reason]` | Soft ban: they can only see the tickets channel. Rejoining doesn't remove it |
 | `/unban @member` | Lifts a soft ban |
+| `/loa request days reason` | Anyone: ask for a leave of absence. `/loa end` ends it early, `/loa list` (staff) shows who is on leave |
+| `/activity start hours [note]` | Posts a roll call here, pinging @Waved. `/activity end` closes it early, `/activity status` shows the count |
+| `/inactivity enable / disable / status / preview` | The automatic 7-day rule. **Off by default**: turn it on once the game is out. `preview` shows who would be warned or removed without doing anything |
 | `/wave open name:Wave 3` | Opens a wave (the Apply button turns on) |
 | `/wave close` | Closes the wave (shows how many were accepted / denied / still waiting) |
 | `/wave status` | Shows the current wave and its numbers |
@@ -167,6 +173,13 @@ The bot also needs the **Moderate Members** permission in every Discord server f
 1. Discord Developer Portal → your app → **Bot** → turn on **Server Members Intent**. (Needed to put the Banned role back if someone leaves and rejoins. Without it the bot won't start.)
 2. Server Settings → **Roles**: keep the bot's role **above** the Banned role.
 3. The Banned role's ID is in `src/config.js` (`BannedRoleId`). On start the bot sets every channel so the Banned role can't see it, except the tickets channel (read only). New channels get the same rule automatically.
+
+### 8. Activity
+
+- Removing someone means: group rank → **Inactive** (rank 2), Waved Discord role removed, DM. Only Waved members are ever moved, never staff ranks. Staff and anyone on leave are skipped.
+- They can apply again in a later wave. When accepted, the bot moves them from Inactive back to Waved.
+- The bot's Roblox account needs a group role **above Inactive** that can change ranks.
+- Days and limits are in `src/config.js` under `Activity`.
 
 ### Updating the bot later
 
