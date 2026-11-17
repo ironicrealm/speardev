@@ -86,6 +86,15 @@ client.once(Events.ClientReady, async () => {
 	);
 	console.log(`Registered ${commands.size} commands`);
 	ctx.groupSync.start(config.GroupSyncInterval);
+
+	// Roblox expires API keys that go unused for 60 days, so use it once a day
+	const keepKeyAlive = () =>
+		roblox
+			.listRoles(true)
+			.then(() => console.log("[Roblox] API key OK"))
+			.catch((error) => console.warn(`[Roblox] API key check failed: ${error.message}`));
+	keepKeyAlive();
+	setInterval(keepKeyAlive, 24 * 60 * 60 * 1000);
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {

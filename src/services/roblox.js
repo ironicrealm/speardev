@@ -100,8 +100,8 @@ class RobloxApi {
 		return membership ? { path: membership.path, role: membership.role } : null;
 	}
 
-	async listRoles() {
-		if (this.roles) {
+	async listRoles(fresh = false) {
+		if (this.roles && !fresh) {
 			return this.roles;
 		}
 		const roles = [];
