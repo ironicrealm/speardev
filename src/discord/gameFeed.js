@@ -79,6 +79,28 @@ function createGameFeed(ctx) {
 		return count;
 	}
 
+	// Event over: grey out the alert (no Deploy button) and reply to it so nobody joins by mistake
+	function closeAlert(operationId) {
+		return serial(`alert:${operationId}`, async () => {
+			const operation = operations.get(operationId);
+			if (!operation?.alert_message_id) {
+				return;
+			}
+			const alerts = await channel(config.Channels.Alerts);
+			const alert = await alerts.messages.fetch(operation.alert_message_id);
+			await alert.edit(ui.alertMessage(operation, null));
+			const guildId = alerts.guildId ?? alerts.guild?.id;
+			const logUrl =
+				operation.log_message_id && guildId
+					? `https://discord.com/channels/${guildId}/${config.Channels.PdLogs}/${operation.log_message_id}`
+					: null;
+			await alerts.send({
+				...ui.linkEnded(operation, operations.kiaFor(operationId), logUrl),
+				reply: { messageReference: operation.alert_message_id, failIfNotExists: false },
+			});
+		});
+	}
+
 	async function pingRoleId() {
 		if (!config.AlertPingRole) {
 			return null;
@@ -154,6 +176,7 @@ function createGameFeed(ctx) {
 			});
 			if (previous) {
 				await refreshLog(previous.id);
+				await closeAlert(previous.id);
 			}
 			const alerts = await channel(config.Channels.Alerts);
 			const message = await alerts.send(ui.alertMessage(operation, await pingRoleId()));
@@ -169,6 +192,7 @@ function createGameFeed(ctx) {
 				return { ended: false };
 			}
 			await refreshLog(operation.id);
+			await closeAlert(operation.id);
 			return { ended: true, event: operation.id };
 		},
 
