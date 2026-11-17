@@ -1,5 +1,7 @@
 const config = require("../config");
 const ui = require("./ui");
+const ticketUi = require("./ticketUi");
+const { dm, log } = require("./helpers");
 
 // Turns what happens in the game into Discord posts:
 // deaths -> PD log + timeout, revives -> "link restored", alerts -> deployment post, last seen -> activity.
@@ -10,6 +12,10 @@ function text(value, max) {
 
 function number(value) {
 	return typeof value === "number" && Number.isFinite(value) ? Math.floor(value) : null;
+}
+
+function idList(value) {
+	return Array.isArray(value) ? value.filter((id) => Number.isInteger(id)).slice(0, 200) : [];
 }
 
 function server(body) {
@@ -28,7 +34,7 @@ function server(body) {
 }
 
 function createGameFeed(ctx) {
-	const { client, operations, links } = ctx;
+	const { client, operations, links, actions, db } = ctx;
 	const chains = new Map();
 
 	// Runs updates to the same Discord message one after another, so edits never clash
@@ -101,6 +107,48 @@ function createGameFeed(ctx) {
 		});
 	}
 
+	// When their service started: accepted into Spearhead, or else when they linked
+	function servedSince(robloxId) {
+		const accepted = db
+			.prepare("SELECT decided_at FROM applications WHERE roblox_id = ? AND status = 'accepted' ORDER BY id DESC LIMIT 1")
+			.get(robloxId);
+		return accepted?.decided_at ?? links.getByRoblox(robloxId)?.linked_at ?? null;
+	}
+
+	async function postMemorial(kia, operation) {
+		if (!config.Channels.Memorial) {
+			return;
+		}
+		try {
+			const wall = await channel(config.Channels.Memorial);
+			const message = await wall.send(
+				ticketUi.memorial({
+					kia,
+					operation,
+					avatar: await ctx.roblox.getHeadshot(kia.roblox_id),
+					servedSince: servedSince(kia.roblox_id),
+					events: operations.eventsAttended(kia.roblox_id),
+				})
+			);
+			operations.setMemorial(kia.id, message.id);
+		} catch (error) {
+			console.warn(`[Memorial] ${error.message}`);
+		}
+	}
+
+	async function removeMemorial(kia) {
+		if (!kia.memorial_message_id) {
+			return;
+		}
+		try {
+			const wall = await channel(config.Channels.Memorial);
+			const message = await wall.messages.fetch(kia.memorial_message_id);
+			await message.delete();
+		} catch (error) {
+			console.warn(`[Memorial] ${error.message}`);
+		}
+	}
+
 	async function pingRoleId() {
 		if (!config.AlertPingRole) {
 			return null;
@@ -120,6 +168,7 @@ function createGameFeed(ctx) {
 			const operation = operations.active(where.jobId);
 			if (operation) {
 				operations.notePlayers(operation.id, where.players);
+				operations.attend(operation.id, [robloxId]);
 			}
 			const kia = operations.addKia({
 				operationId: operation?.id,
@@ -137,6 +186,7 @@ function createGameFeed(ctx) {
 				operations.setKiaMessage(kia.id, message.id);
 			}
 			const timedOut = await timeoutEverywhere(robloxId, config.DeathTimeout * 1000, "KIA");
+			await postMemorial(kia, operation);
 			return { event: operation?.id ?? null, timedOut };
 		},
 
@@ -150,6 +200,7 @@ function createGameFeed(ctx) {
 			if (!kia) {
 				return { found: false };
 			}
+			await removeMemorial(kia);
 			if (kia.operation_id) {
 				await refreshLog(kia.operation_id);
 			} else if (kia.message_id) {
@@ -174,6 +225,7 @@ function createGameFeed(ctx) {
 				message: text(body.message, 1500) || "",
 				handler: text(body.handler, 40),
 			});
+			operations.attend(operation.id, idList(body.userIds));
 			if (previous) {
 				await refreshLog(previous.id);
 				await closeAlert(previous.id);
@@ -187,6 +239,10 @@ function createGameFeed(ctx) {
 
 		async "event-end"(body) {
 			const where = server(body);
+			const running = operations.active(where.jobId);
+			if (running) {
+				operations.attend(running.id, idList(body.userIds));
+			}
 			const operation = operations.end(where.jobId);
 			if (!operation) {
 				return { ended: false };
@@ -206,7 +262,40 @@ function createGameFeed(ctx) {
 			const operation = jobId ? operations.active(jobId) : null;
 			if (operation) {
 				operations.notePlayers(operation.id, number(body.players));
+				operations.attend(operation.id, [robloxId]);
 			}
+			return {};
+		},
+
+		// Game servers ask every few seconds: anything to do for my players?
+		async poll(body) {
+			const pending = actions.pendingFor(idList(body.userIds));
+			return { actions: pending.map((a) => ({ id: a.id, userId: a.roblox_id, kind: a.kind, slot: a.slot, since: a.since })) };
+		},
+
+		// Game reports an action as done
+		async ack(body) {
+			const id = number(body.id);
+			if (!id) {
+				throw new Error("missing id");
+			}
+			const action = actions.finish(id, text(body.result, 200));
+			if (!action) {
+				return { duplicate: true };
+			}
+			const link = links.getByRoblox(action.roblox_id);
+			const ok = body.ok === true;
+			if (action.kind === "void" && link) {
+				await dm(
+					client,
+					link.discord_id,
+					ok ? "✅ Your death was voided in game. Your character is back." : "Staff voided your death, but the game couldn't restore your character. Staff have been told."
+				);
+			}
+			await log(
+				client,
+				`${ok ? "🛡️" : "⚠️"} ${action.kind} for **${link?.roblox_name ?? action.roblox_id}**${action.ticket_id ? ` (appeal #${action.ticket_id})` : ""}: ${text(body.result, 200) ?? (ok ? "done" : "failed")}`
+			);
 			return {};
 		},
 	};

@@ -96,8 +96,57 @@ function open(file) {
 			key TEXT PRIMARY KEY,
 			value TEXT
 		);
+
+		CREATE TABLE IF NOT EXISTS tickets (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			type TEXT NOT NULL,
+			discord_id TEXT NOT NULL,
+			roblox_id INTEGER,
+			channel_id TEXT,
+			message_id TEXT,
+			answers TEXT NOT NULL,
+			kia_id INTEGER,
+			status TEXT NOT NULL DEFAULT 'open',
+			claimed_by TEXT,
+			closed_by TEXT,
+			reason TEXT,
+			created_at INTEGER NOT NULL,
+			closed_at INTEGER
+		);
+
+		CREATE INDEX IF NOT EXISTS tickets_user ON tickets (discord_id, status);
+
+		CREATE TABLE IF NOT EXISTS actions (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			roblox_id INTEGER NOT NULL,
+			kind TEXT NOT NULL,
+			slot TEXT,
+			since INTEGER,
+			ticket_id INTEGER,
+			created_at INTEGER NOT NULL,
+			done_at INTEGER,
+			result TEXT
+		);
+
+		CREATE INDEX IF NOT EXISTS actions_pending ON actions (roblox_id, done_at);
+
+		CREATE TABLE IF NOT EXISTS attendance (
+			operation_id INTEGER NOT NULL,
+			roblox_id INTEGER NOT NULL,
+			PRIMARY KEY (operation_id, roblox_id)
+		);
 	`);
+	// columns added after the first release
+	addColumn(db, "kia", "memorial_message_id TEXT");
 	return db;
+}
+
+function addColumn(db, table, definition) {
+	try {
+		db.exec(`ALTER TABLE ${table} ADD COLUMN ${definition}`);
+	} catch {
+		// already there
+	}
 }
 
 function now() {

@@ -10,9 +10,12 @@ const { Waves } = require("./services/waves");
 const { Applications } = require("./services/applications");
 const { GroupSync } = require("./services/groupSync");
 const { Operations } = require("./services/operations");
+const { Tickets } = require("./services/tickets");
+const { Actions } = require("./services/actions");
 const { EPHEMERAL, isStaff, giveRole, dm, log } = require("./discord/helpers");
 const { createGameFeed } = require("./discord/gameFeed");
 const { createServer } = require("./web/server");
+const ticketManager = require("./discord/ticketManager");
 
 // Starts the bot.
 
@@ -51,6 +54,8 @@ const ctx = {
 	links: new Links(db, roblox, { codeMinutes: config.VerifyCodeMinutes }),
 	waves: new Waves(db),
 	operations: new Operations(db),
+	tickets: new Tickets(db),
+	actions: new Actions(db),
 };
 
 // When an accepted player gets into the Roblox group
@@ -99,6 +104,9 @@ client.once(Events.ClientReady, async () => {
 			.catch((error) => console.warn(`[Roblox] API key check failed: ${error.message}`));
 	keepKeyAlive();
 	setInterval(keepKeyAlive, 24 * 60 * 60 * 1000);
+
+	// tickets nobody picked up get closed after a few days
+	ticketManager.startAutoClose(ctx);
 
 	// Game connection (deaths, alerts, events, last seen)
 	if (!config.Game.Secret) {
