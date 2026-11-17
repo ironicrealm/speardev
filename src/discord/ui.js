@@ -233,7 +233,8 @@ function kiaSolo(kia) {
 		.addFields({ name: "KIA", value: kiaLine(kia, 1) })
 		.setFooter({ text: FOOTER })
 		.setTimestamp(kia.at * 1000);
-	return { content: tidesHeader(kia.map || "UNKNOWN"), embeds: [embed], allowedMentions: { parse: [] } };
+	// no "tides" header here, that's only for events
+	return { embeds: [embed], allowedMentions: { parse: [] } };
 }
 
 function joinLink(operation) {
